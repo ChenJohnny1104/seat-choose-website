@@ -22,7 +22,7 @@ export default function Home() {
     setSeats(data || [])
   }
 
-  async function chooseSeat(seat) {
+  async function chooseSeat(seat: any) {
     if (seat.is_occupied) return
     if (!yourName) {
       alert('請先輸入你的名字')

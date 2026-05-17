@@ -29,12 +29,12 @@ export default function Admin() {
     fetchSeats()
   }
 
-  async function deleteSeat(id) {
+  async function deleteSeat(id: number) {
     await supabase.from('seats').delete().eq('id', id)
     fetchSeats()
   }
 
-  async function resetSeat(id) {
+  async function resetSeat(id: number) {
     await supabase.from('seats').update({ is_occupied: false, occupied_by: '' }).eq('id', id)
     fetchSeats()
   }
