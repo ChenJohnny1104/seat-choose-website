@@ -5,14 +5,15 @@ import { supabase } from '../supabase'
 
 const ADMIN_PASSWORD = 'admin123'
 
+const th: React.CSSProperties = { padding: '10px', border: '1px solid #ccc', textAlign: 'left' }
+const td: React.CSSProperties = { padding: '10px', border: '1px solid #ccc' }
+
 export default function Admin() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [passwordInput, setPasswordInput] = useState('')
   const [passwordError, setPasswordError] = useState('')
-
   const [users, setUsers] = useState<any[]>([])
   const [seats, setSeats] = useState<any[]>([])
-  const [gameState, setGameState] = useState<any>(null)
   const [isCounting, setIsCounting] = useState(false)
   const [countdown, setCountdown] = useState(10)
 
@@ -25,6 +26,7 @@ export default function Admin() {
 
   useEffect(() => {
     if (!isCounting) return
+    setCountdown(10)
     const interval = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
@@ -43,20 +45,16 @@ export default function Admin() {
     const { data: g } = await supabase.from('game_state').select('*').eq('id', 1).single()
     setUsers(u || [])
     setSeats(s || [])
-    setGameState(g)
     setIsCounting(g?.is_counting || false)
   }
 
   async function handleSettle() {
-    // 開始倒數
     await supabase.from('game_state').update({
       is_counting: true,
       countdown_started_at: new Date().toISOString()
     }).eq('id', 1)
     setIsCounting(true)
-    setCountdown(10)
 
-    // 等10秒後結算
     setTimeout(async () => {
       await supabase.from('game_state').update({ is_counting: false }).eq('id', 1)
       setIsCounting(false)
@@ -65,7 +63,7 @@ export default function Admin() {
   }
 
   async function calculateResults() {
-    const { data: u } = await supabase.from('users').select('*').order('student_id')
+    const { data: u } = await supabase.from('users').select('*')
     const { data: s } = await supabase.from('seats').select('*')
     if (!u || !s) return
 
@@ -82,26 +80,18 @@ export default function Admin() {
       }
     }
 
-    const taken = new Set<string>()
-
     for (const seatCode of seatOrder) {
       const candidates = u.filter((user: any) => user.current_seat === seatCode)
       if (candidates.length === 0) continue
-
       const maxScore = Math.max(...candidates.map((c: any) => c.score))
       const topCandidates = candidates.filter((c: any) => c.score === maxScore)
       const winner = topCandidates[Math.floor(Math.random() * topCandidates.length)]
-
-      // 把座位永久給贏家
       await supabase.from('seats').update({
         is_permanent: true,
         owner_id: winner.id
       }).eq('seat_code', seatCode)
-
-      taken.add(seatCode)
     }
 
-    // 清除所有人的當前選擇
     await supabase.from('users').update({ current_seat: null }).neq('id', 0)
     fetchAll()
   }
@@ -156,7 +146,6 @@ export default function Admin() {
     <main style={{ padding: '40px', fontFamily: 'sans-serif' }}>
       <h1>後台管理</h1>
 
-      {/* 結算區 */}
       <div style={{ marginBottom: '40px', padding: '20px', backgroundColor: '#f0f0f0', borderRadius: '8px' }}>
         <h2>回合控制</h2>
         {isCounting ? (
@@ -164,16 +153,12 @@ export default function Admin() {
             倒數中：{countdown} 秒
           </div>
         ) : (
-          <button
-            onClick={handleSettle}
-            style={{ padding: '12px 24px', backgroundColor: '#00008b', color: 'white', border: 'none', borderRadius: '6px', fontSize: '16px', cursor: 'pointer' }}
-          >
+          <button onClick={handleSettle} style={{ padding: '12px 24px', backgroundColor: '#00008b', color: 'white', border: 'none', borderRadius: '6px', fontSize: '16px', cursor: 'pointer' }}>
             開始結算
           </button>
         )}
       </div>
 
-      {/* 座位狀態 */}
       <div style={{ marginBottom: '40px' }}>
         <h2>座位狀態</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 70px)', gap: '8px' }}>
@@ -183,12 +168,16 @@ export default function Admin() {
             const seat = seats.find((s: any) => s.seat_code === code)
             const owner = seat?.owner_id ? users.find((u: any) => u.id === seat.owner_id) : null
             return (
-              <div key={code} style={{
-                width: '70px', height: '70px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                backgroundColor: seat?.is_permanent ? '#add8e6' : 'white',
-                border: '1px solid #ccc', borderRadius: '6px', fontSize: '11px', cursor: seat?.is_permanent ? 'pointer' : 'default'
-              }}
+              <div
+                key={code}
                 onClick={() => seat?.is_permanent && resetSeat(code)}
+                style={{
+                  width: '70px', height: '70px', display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: seat?.is_permanent ? '#add8e6' : 'white',
+                  border: '1px solid #ccc', borderRadius: '6px', fontSize: '11px',
+                  cursor: seat?.is_permanent ? 'pointer' : 'default'
+                }}
               >
                 <div>{code}</div>
                 {owner && <div style={{ color: '#555' }}>#{owner.student_id}</div>}
@@ -199,7 +188,6 @@ export default function Admin() {
         </div>
       </div>
 
-      {/* 帳號管理 */}
       <div>
         <h2>帳號管理</h2>
         <table style={{ borderCollapse: 'collapse', width: '100%' }}>
@@ -264,6 +252,3 @@ export default function Admin() {
     </main>
   )
 }
-
-const th: React.CSSProperties = { padding: '10px', border: '1px solid #ccc', textAlign: 'left' }
-const td: React.CSSProperties = { padding: '10px', border: '1px solid #ccc' }
