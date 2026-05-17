@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 
 export default function Admin() {
-  const [seats, setSeats] = useState([])
+  const [seats, setSeats] = useState<any[]>([])
   const [newSeat, setNewSeat] = useState('')
 
   useEffect(() => {
